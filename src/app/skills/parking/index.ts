@@ -2,7 +2,6 @@ import type { Skill } from "../../agent/types";
 import { calcParkingDuration, calcParkingFee, parseParkingLocation } from "../../utils/parking";
 import parkingBenefitsDoc from "../../data/membership-benefits.md?raw";
 
-const PARKING_QUERY = /停车|车位|车停|车在|停车费|停车费多少|停了多久|停车时长/;
 const PARKING_PRICING_QUERY = /怎么收费|收费标准|停车费|多少钱|价格|计费|收费规则/;
 
 function getParkingBenefitMessageFromDoc(memberTier: "silver" | "diamond" | "black" | undefined): string | null {
@@ -16,12 +15,8 @@ function getParkingBenefitMessageFromDoc(memberTier: "silver" | "diamond" | "bla
 
 export const parkingSkill: Skill = {
   name: "parking",
-  match: ({ text }) => {
-    const parkingLocation = parseParkingLocation(text);
-    const isParkingRecord = Boolean(parkingLocation);
-    const isParkingQuery = !isParkingRecord && PARKING_QUERY.test(text);
-    return isParkingRecord || isParkingQuery;
-  },
+  intentDescription: "处理停车位置登记、停车状态查询、停车时长与费用估算、停车收费标准和停车权益说明。",
+  match: () => true,
   handle: ({ text, parkingInfo, userProfile }) => {
     const parkingLocation = parseParkingLocation(text);
     const isParkingRecord = Boolean(parkingLocation);

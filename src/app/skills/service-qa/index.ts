@@ -175,6 +175,7 @@ async function rewriteWithLLM(userQuestion: string, snippet: string): Promise<st
 
 export const serviceQASkill: Skill = {
   name: "service-qa",
+  intentDescription: "处理商场基础客服咨询（服务台、轮椅、退换货、邮寄、营业时间、失物招领等），基于知识库文档回答且不杜撰。",
   match: () => true,
   handle: async ({ text }) => {
     const mallServiceQuery = await isMallServiceQuery(text);

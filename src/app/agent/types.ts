@@ -26,6 +26,7 @@ export interface AgentResponse {
 
 export interface Skill {
   name: string;
+  intentDescription: string;
   match: (ctx: SkillContext) => boolean;
   handle: (ctx: SkillContext) => AgentResponse | null | Promise<AgentResponse | null>;
 }

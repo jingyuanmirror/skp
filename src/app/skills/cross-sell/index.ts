@@ -24,8 +24,6 @@ const CROSS_SELL_COFFEE = {
   scope: "brand",
 };
 
-const QUEUE_ASK = /排队|等多|排多久|排队多久|人多吗|拥挤|要等多/;
-
 const DEMO_QUEUE_CASE = {
   name: "Chanel 精品店",
   floor: "1F-A12",
@@ -45,14 +43,11 @@ function buildDemoResponse() {
 
 export const crossSellSkill: Skill = {
   name: "cross-sell",
-  match: ({ text }) => {
-    const lowerValue = text.toLowerCase();
-    return QUEUE_ASK.test(text)
-      && Object.keys(BRAND_QUEUE).some((keyword) => lowerValue.includes(keyword));
-  },
+  intentDescription: "处理品牌排队拥挤与等待时长咨询，并在等待较长时给出交叉营销建议与权益券。",
+  match: () => true,
   handle: ({ text }) => {
     const lowerValue = text.toLowerCase();
-    const matched = Object.entries(BRAND_QUEUE).find(([keyword]) => lowerValue.includes(keyword) && QUEUE_ASK.test(text));
+    const matched = Object.entries(BRAND_QUEUE).find(([keyword]) => lowerValue.includes(keyword));
 
     if (!matched) {
       return buildDemoResponse();

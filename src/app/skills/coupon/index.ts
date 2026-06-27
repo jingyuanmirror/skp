@@ -22,28 +22,16 @@ const COUPON_DB: CouponDef[] = [
   { brand: "La Mer", discount: "满1500减200", title: "护肤臻享券", validUntil: "2026.07.31", scope: "brand", triggers: ["la mer", "海蓝之谜"] },
 ];
 
-const COUPON_QUERY = /优惠券|有没有券|优惠|折扣|打折|活动|促销|发券|领券/;
-
 export const couponSkill: Skill = {
   name: "coupon",
-  match: ({ text }) => {
-    const lowerValue = text.toLowerCase();
-    const matchedBrandCoupon = COUPON_DB.find(
-      (coupon) =>
-        coupon.scope === "brand"
-        && coupon.triggers.some((trigger) => lowerValue.includes(trigger))
-        && /优惠券|券|优惠|折扣|打折|活动|促销/.test(text),
-    );
-
-    return Boolean(matchedBrandCoupon) || COUPON_QUERY.test(text);
-  },
+  intentDescription: "处理优惠券与活动咨询，返回商场通用券或品牌专属券信息。",
+  match: () => true,
   handle: ({ text }) => {
     const lowerValue = text.toLowerCase();
     const matchedBrandCoupon = COUPON_DB.find(
       (coupon) =>
         coupon.scope === "brand"
-        && coupon.triggers.some((trigger) => lowerValue.includes(trigger))
-        && /优惠券|券|优惠|折扣|打折|活动|促销/.test(text),
+        && coupon.triggers.some((trigger) => lowerValue.includes(trigger)),
     );
 
     if (matchedBrandCoupon) {

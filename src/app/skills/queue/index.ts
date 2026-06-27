@@ -2,8 +2,6 @@ import type { Skill } from "../../agent/types";
 import { parseQueueRequest, QUEUE_VENUES } from "../../utils/queue";
 import type { QueueInfo } from "../../types";
 
-const QUEUE_QUERY = /排队排到|排到了|排队进度|排队怎么样|排到哪|排队状态|我的排队|排队号/;
-
 const DEMO_QUEUE_INFO: QueueInfo = {
   brand: "新荣记",
   floor: "5F",
@@ -21,7 +19,8 @@ function createQueueNo() {
 
 export const queueSkill: Skill = {
   name: "queue",
-  match: ({ text }) => Boolean(parseQueueRequest(text)) || QUEUE_QUERY.test(text),
+  intentDescription: "处理餐厅或门店排队托管、取号、排队进度与到号状态查询；无实时数据时提供演示案例。",
+  match: () => true,
   handle: ({ text, queueInfo }) => {
     const queueRequest = parseQueueRequest(text);
 
