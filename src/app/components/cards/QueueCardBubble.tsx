@@ -1,4 +1,5 @@
 import { motion } from "motion/react";
+import { Hourglass, Store } from "lucide-react";
 import type { QueueCard } from "../../types";
 
 export function QueueCardBubble({ card }: { card: QueueCard }) {
@@ -32,9 +33,7 @@ export function QueueCardBubble({ card }: { card: QueueCard }) {
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-[14px]" style={{ color: "#B8924A" }}>
-              ⏳
-            </span>
+            <Hourglass size={16} strokeWidth={1.8} color="#B8924A" />
             <span className="text-[11px] tracking-wide text-[#1A1713]" style={{ fontWeight: 500 }}>
               排队托管
             </span>
@@ -50,8 +49,8 @@ export function QueueCardBubble({ card }: { card: QueueCard }) {
 
       <div className="px-4 py-3.5">
         <div className="flex items-start gap-2.5 mb-3">
-          <span className="text-[12px] mt-0.5" style={{ color: "#B8924A" }}>
-            🏪
+          <span className="w-4 h-4 mt-0.5 flex items-center justify-center" style={{ color: "#B8924A" }}>
+            <Store size={14} strokeWidth={1.8} color="#B8924A" />
           </span>
           <div>
             <p className="text-[9px] tracking-wider text-[#8C8278] mb-0.5">店铺</p>

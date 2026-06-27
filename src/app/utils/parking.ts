@@ -1,7 +1,18 @@
 export function parseParkingLocation(text: string): { location: string; floor: string } | null {
-  const match = text.match(/(B(\d))\s*[-—–]*\s*([A-Za-z]?\d{1,3})/i);
-  if (match) {
-    return { floor: `B${match[2]}`, location: `${match[1].toUpperCase()}` };
+  const normalized = text.replace(/\s+/g, "");
+
+  const explicitFloorMatch = normalized.match(/B(\d)\s*[-—–]?\s*([A-Za-z]?\d{1,3})/i);
+  if (explicitFloorMatch) {
+    const floor = `B${explicitFloorMatch[1]}`;
+    const slot = explicitFloorMatch[2].toUpperCase();
+    return { floor, location: `${floor}-${slot}` };
+  }
+
+  const implicitFloorMatch = normalized.match(/B\s*[-—–]\s*([A-Za-z]?\d{1,3})/i);
+  if (implicitFloorMatch) {
+    const floor = "B2";
+    const slot = implicitFloorMatch[1].toUpperCase();
+    return { floor, location: `${floor}-${slot}` };
   }
 
   const floorMatch = text.match(/地下(\d)\s*层/);
@@ -11,9 +22,10 @@ export function parseParkingLocation(text: string): { location: string; floor: s
     return { floor: `B${floorMatch[1]}`, location: col ? `B${floorMatch[1]}-${col}` : `B${floorMatch[1]}` };
   }
 
-  const stopMatch = text.match(/(?:停在|车在|停的?|车位)\s*([A-Za-z]?\d{1,3})/);
+  const stopMatch = text.match(/(?:停在|车在|停的?|车位)\s*([A-Za-z]?[-—–]?\d{1,3})/i);
   if (stopMatch) {
-    return { floor: "B2", location: stopMatch[1].toUpperCase() };
+    const normalizedSlot = stopMatch[1].replace(/[-—–]/g, "").toUpperCase();
+    return { floor: "B2", location: `B2-${normalizedSlot}` };
   }
 
   return null;

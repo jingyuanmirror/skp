@@ -4,6 +4,17 @@ import type { QueueInfo } from "../../types";
 
 const QUEUE_QUERY = /排队排到|排到了|排队进度|排队怎么样|排到哪|排队状态|我的排队|排队号/;
 
+const DEMO_QUEUE_INFO: QueueInfo = {
+  brand: "新荣记",
+  floor: "5F",
+  partySize: 3,
+  queueNo: "D28",
+  ahead: 4,
+  estMin: 32,
+  enrolledAt: Date.now(),
+  status: "queuing",
+};
+
 function createQueueNo() {
   return `${String.fromCharCode(65 + Math.floor(Math.random() * 8))}${Math.floor(Math.random() * 90) + 10}`;
 }
@@ -74,8 +85,18 @@ export const queueSkill: Skill = {
     }
 
     return {
-      text: "李先生，目前您还没有排队记录。您可以说\"帮我排一个新荣记3人位\"，我会为您托管排队并在到号时提醒您。",
-      quickReplies: ["帮我排新荣记", "帮我排Chanel", "今日专属优惠"],
+      text: `李先生，目前暂未查询到您的实时排队记录。为便于演示，先为您展示一个示例：${DEMO_QUEUE_INFO.brand}（${DEMO_QUEUE_INFO.floor}）${DEMO_QUEUE_INFO.partySize}人位，排号${DEMO_QUEUE_INFO.queueNo}，前方${DEMO_QUEUE_INFO.ahead}组，预计约${DEMO_QUEUE_INFO.estMin}分钟。`,
+      quickReplies: ["帮我排新荣记", "帮我排Chanel", "查询排队进度"],
+      queueCard: {
+        type: "queue-card",
+        brand: DEMO_QUEUE_INFO.brand,
+        floor: DEMO_QUEUE_INFO.floor,
+        partySize: DEMO_QUEUE_INFO.partySize,
+        queueNo: DEMO_QUEUE_INFO.queueNo,
+        ahead: DEMO_QUEUE_INFO.ahead,
+        estMin: DEMO_QUEUE_INFO.estMin,
+        status: DEMO_QUEUE_INFO.status,
+      },
     };
   },
 };

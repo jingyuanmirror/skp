@@ -19,11 +19,11 @@ export function executeTool(
   toolName: string,
   args: Record<string, unknown>,
   ctx: SkillContext,
-): ToolResult {
+): Promise<ToolResult> {
   // Find the skill by name
   const skill = skills.find((s) => s.name === toolName);
   if (!skill) {
-    return { data: { error: `Unknown tool: ${toolName}` } };
+    return Promise.resolve({ data: { error: `Unknown tool: ${toolName}` } });
   }
 
   // Build a modified context where text comes from the tool argument
@@ -33,17 +33,23 @@ export function executeTool(
   };
 
   // Execute the skill's handle() directly
-  const response = skill.handle(toolCtx);
+  return Promise.resolve(skill.handle(toolCtx)).then((response) => {
+    if (!response) {
+      return {
+        data: { error: `Skill returned no result: ${toolName}` },
+      };
+    }
 
-  return {
-    data: {
-      reply: response.text,
-      quickReplies: response.quickReplies,
-    },
-    sideEffects: response.sideEffects,
-    card: response.card,
-    parkingCard: response.parkingCard,
-    coupons: response.coupons,
-    queueCard: response.queueCard,
-  };
+    return {
+      data: {
+        reply: response.text,
+        quickReplies: response.quickReplies,
+      },
+      sideEffects: response.sideEffects,
+      card: response.card,
+      parkingCard: response.parkingCard,
+      coupons: response.coupons,
+      queueCard: response.queueCard,
+    };
+  });
 }

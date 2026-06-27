@@ -37,6 +37,8 @@ export const membershipSkill: Skill = {
             categories: newCategories,
             brands: newBrands,
             items: newItems,
+            isMember: true,
+            memberTier: userProfile.memberTier ?? "silver",
             _justOnboarded: false,
           }),
         },
@@ -57,7 +59,7 @@ export const membershipSkill: Skill = {
           benefits: ["积分累计享双倍", "专属停车优惠", "生日礼遇"],
         },
         sideEffects: {
-          setUserProfile: (prev) => ({ ...prev, _justOnboarded: true }),
+          setUserProfile: (prev) => ({ ...prev, isMember: true, memberTier: prev.memberTier ?? "silver", _justOnboarded: true }),
         },
       };
     }

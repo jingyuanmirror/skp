@@ -14,7 +14,12 @@ export default function App() {
   const [isTyping, setIsTyping] = useState(false);
   const [parkingInfo, setParkingInfo] = useState<{ location: string; floor: string; parkedAt: number } | null>(null);
   const [queueInfo, setQueueInfo] = useState<QueueInfo | null>(null);
-  const [userProfile, setUserProfile] = useState<UserProfile>({ categories: [], brands: [], items: [] });
+  const [userProfile, setUserProfile] = useState<UserProfile>({
+    categories: [],
+    brands: [],
+    items: [],
+    isMember: false,
+  });
   const [currentPage, setCurrentPage] = useState<"home" | "parking">("home");
   const [isStreaming, setIsStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -252,13 +257,15 @@ export default function App() {
               </p>
               <div className="flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#8BA888] animate-pulse" />
-                <span className="text-[10px] tracking-widest text-[#B8924A]">◆ 黑钻会员</span>
+                <span className="text-[10px] tracking-widest text-[#B8924A]">
+                  {userProfile.isMember ? "◆ 会员已开通" : "◇ 未开通会员"}
+                </span>
               </div>
 
               <div className="mt-3 self-start px-3 py-1.5 rounded-full" style={{ background: "rgba(255,255,255,0.6)", border: "1px solid rgba(184,146,74,0.3)" }}>
                 <span className="text-[9px] text-[#8C8278] tracking-wider mr-2">积分余额</span>
                 <span className="text-[12px] text-[#B8924A]" style={{ fontFamily: "'DM Mono', monospace" }}>
-                  128,400
+                  {userProfile.isMember ? "128,400" : "未开通"}
                 </span>
               </div>
             </div>

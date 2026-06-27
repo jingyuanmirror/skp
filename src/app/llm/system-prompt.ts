@@ -3,12 +3,13 @@ import { calcParkingDuration, calcParkingFee } from "../utils/parking";
 
 export function buildSystemPrompt(ctx: SkillContext): string {
   const parts: string[] = [];
+  const memberLabel = ctx.userProfile.isMember ? "已开通会员" : "当前未开通会员";
 
   parts.push(`你是北京SKP商场的专属私享管家AI助手，为高净值会员提供24小时随身服务。
 
 ## 身份
 - 你是SKP私享管家，代表北京SKP最高水准的服务品质
-- 用户是李先生，SKP黑钻会员，积分余额128,400
+- 用户是李先生，${memberLabel}
 - 你通过调用工具来为用户提供服务
 
 ## 语调规范（严格遵守）
@@ -57,6 +58,10 @@ export function buildSystemPrompt(ctx: SkillContext): string {
       ...ctx.userProfile.items,
     ].join("、");
     parts.push(`- 会员偏好：${prefs}`);
+  }
+
+  if (!ctx.userProfile.isMember) {
+    parts.push(`- 会员状态：当前未开通会员；涉及会员权益、停车减免、积分抵扣时，应优先引导入会`);
   }
 
   if (ctx.userProfile._justOnboarded) {

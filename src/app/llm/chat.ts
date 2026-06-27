@@ -116,7 +116,7 @@ export async function chat(
 
       // Execute the tool
       console.log(`[TOOL] name=${toolCall.function.name} args=${JSON.stringify(args)}`);
-      const toolResult: ToolResult = executeTool(toolCall.function.name, args, ctx);
+      const toolResult: ToolResult = await executeTool(toolCall.function.name, args, ctx);
       console.log(`[TOOL] result=${JSON.stringify(toolResult.data)}`, `parkingCard=${!!toolResult.parkingCard}`, `sideEffects=${JSON.stringify(Object.keys(toolResult.sideEffects ?? {}))}`);
 
       // Collect side effects

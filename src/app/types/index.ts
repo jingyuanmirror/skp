@@ -71,6 +71,8 @@ export interface UserProfile {
   categories: string[];
   brands: string[];
   items: string[];
+  isMember?: boolean;
+  memberTier?: "silver" | "diamond" | "black";
   _justOnboarded?: boolean;
 }
 

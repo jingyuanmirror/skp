@@ -20,7 +20,7 @@ export async function route(
   ctx: SkillContext,
   onToken?: (token: string) => void,
 ): Promise<AgentResponse> {
-  const skillResponse = routeBySkills(ctx);
+  const skillResponse = await routeBySkills(ctx);
   if (skillResponse) {
     return skillResponse;
   }
@@ -49,10 +49,13 @@ export async function route(
 /**
  * Skill router — first-match-wins over registered skills.
  */
-function routeBySkills(ctx: SkillContext): AgentResponse | null {
+async function routeBySkills(ctx: SkillContext): Promise<AgentResponse | null> {
   for (const skill of skills) {
     if (skill.match(ctx)) {
-      return skill.handle(ctx);
+      const result = await skill.handle(ctx);
+      if (result) {
+        return result;
+      }
     }
   }
   return null;

@@ -24,23 +24,38 @@ const CROSS_SELL_COFFEE = {
   scope: "brand",
 };
 
-const QUEUE_ASK = /排队|等多|排多久|排队多久|人多人|要等多/;
+const QUEUE_ASK = /排队|等多|排多久|排队多久|人多吗|拥挤|要等多/;
+
+const DEMO_QUEUE_CASE = {
+  name: "Chanel 精品店",
+  floor: "1F-A12",
+  waitMin: 36,
+};
+
+function buildDemoResponse() {
+  const info = DEMO_QUEUE_CASE;
+  const crossCoupon = { type: "coupon-card" as const, ...CROSS_SELL_COFFEE };
+
+  return {
+    text: `李先生，当前暂未查询到实时排队接口数据，以下为演示案例：${info.name}（${info.floor}）预计等待约${info.waitMin}分钟。\n\n排队时间较长，建议您先前往4F「${crossCoupon.brand}」稍作休息，我已为您附上${crossCoupon.discount}${crossCoupon.title}供演示使用。`,
+    quickReplies: ["帮我托管排队", "查看FLAIR菜单", "还有其他品牌吗"],
+    coupons: [crossCoupon],
+  };
+}
 
 export const crossSellSkill: Skill = {
   name: "cross-sell",
   match: ({ text }) => {
     const lowerValue = text.toLowerCase();
-    return Object.keys(BRAND_QUEUE).some((keyword) => lowerValue.includes(keyword) && QUEUE_ASK.test(text));
+    return QUEUE_ASK.test(text)
+      && Object.keys(BRAND_QUEUE).some((keyword) => lowerValue.includes(keyword));
   },
   handle: ({ text }) => {
     const lowerValue = text.toLowerCase();
     const matched = Object.entries(BRAND_QUEUE).find(([keyword]) => lowerValue.includes(keyword) && QUEUE_ASK.test(text));
 
     if (!matched) {
-      return {
-        text: "已收到您的需求，正在为您安排，请稍候片刻。如有任何进一步需求，请随时告知。",
-        quickReplies: ["查询停车状态", "今日专属优惠"],
-      };
+      return buildDemoResponse();
     }
 
     const info = matched[1];
