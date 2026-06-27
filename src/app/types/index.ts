@@ -47,6 +47,7 @@ export interface Message {
   parkingCard?: ParkingCard;
   coupons?: CouponCard[];
   queueCard?: QueueCard;
+  streaming?: boolean;
 }
 
 export interface ParkingInfo {

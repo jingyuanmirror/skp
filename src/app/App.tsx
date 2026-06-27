@@ -16,6 +16,8 @@ export default function App() {
   const [queueInfo, setQueueInfo] = useState<QueueInfo | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile>({ categories: [], brands: [], items: [] });
   const [currentPage, setCurrentPage] = useState<"home" | "parking">("home");
+  const [isStreaming, setIsStreaming] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const chatRef = useRef<HTMLDivElement>(null);
@@ -91,66 +93,89 @@ export default function App() {
     return () => clearInterval(interval);
   }, [queueInfo?.enrolledAt]);
 
-  function send(text?: string) {
+  async function send(text?: string) {
     const value = (text ?? input).trim();
-    if (!value) return;
+    if (!value || isStreaming) return;
 
+    // 1. Append user message immediately
     setMessages((p) => [...p, { id: `u-${Date.now()}`, role: "user", text: value, time: formatTime() }]);
     setInput("");
     setIsTyping(true);
+    setIsStreaming(true);
 
-    setTimeout(() => {
-      setIsTyping(false);
+    // 2. Create streaming placeholder for agent response
+    const agentMsgId = `a-${Date.now()}`;
+    setMessages((p) => [...p, { id: agentMsgId, role: "agent", text: "", time: formatTime(), streaming: true }]);
 
-      const response = route({
-        text: value,
-        userProfile,
-        parkingInfo,
-        queueInfo,
-      });
+    // 3. Setup abort controller for timeout
+    const abortController = new AbortController();
+    abortRef.current = abortController;
+    const timeout = setTimeout(() => abortController.abort(), 30000);
 
-      if (response?.sideEffects?.setUserProfile) {
+    try {
+      // 4. Call LLM with streaming
+      const response = await route(
+        { text: value, userProfile, parkingInfo, queueInfo },
+        (token) => {
+          // Stream each token into the placeholder message
+          setMessages((p) =>
+            p.map((m) => (m.id === agentMsgId ? { ...m, text: m.text + token } : m)),
+          );
+        },
+      );
+
+      // 5. Apply side effects
+      if (response.sideEffects?.setUserProfile) {
         setUserProfile(response.sideEffects.setUserProfile);
       }
-      if (response?.sideEffects && "parkingInfo" in response.sideEffects) {
+      if (response.sideEffects && "parkingInfo" in response.sideEffects) {
         setParkingInfo(response.sideEffects.parkingInfo ?? null);
       }
-      if (response?.sideEffects && "queueInfo" in response.sideEffects) {
+      if (response.sideEffects && "queueInfo" in response.sideEffects) {
         setQueueInfo(response.sideEffects.queueInfo ?? null);
       }
-      if (response?.sideEffects?.resetQueueNotified) {
+      if (response.sideEffects?.resetQueueNotified) {
         queueNotifiedRef.current = { almost: false, ready: false };
       }
 
-      if (response) {
-        setMessages((p) => [
-          ...p,
-          {
-            id: `a-${Date.now()}`,
-            role: "agent",
-            text: response.text,
-            time: formatTime(),
-            quickReplies: response.quickReplies,
-            card: response.card,
-            parkingCard: response.parkingCard,
-            coupons: response.coupons,
-            queueCard: response.queueCard,
-          },
-        ]);
-        return;
-      }
-
-      setMessages((p) => [
-        ...p,
-        {
-          id: `a-${Date.now()}`,
-          role: "agent",
-          text: "已收到您的需求，正在为您安排，请稍候片刻。如有任何进一步需求，请随时告知。",
-          time: formatTime(),
-          quickReplies: ["查询停车状态", "今日专属优惠"],
-        },
-      ]);
-    }, 1300);
+      // 6. Finalize the message with full text, cards, quickReplies
+      setMessages((p) =>
+        p.map((m) =>
+          m.id === agentMsgId
+            ? {
+                ...m,
+                text: response.text,
+                quickReplies: response.quickReplies,
+                card: response.card,
+                parkingCard: response.parkingCard,
+                coupons: response.coupons,
+                queueCard: response.queueCard,
+                streaming: false,
+              }
+            : m,
+        ),
+      );
+    } catch (error) {
+      console.error("Send failed:", error);
+      // On error, finalize the placeholder with a fallback message
+      setMessages((p) =>
+        p.map((m) =>
+          m.id === agentMsgId
+            ? {
+                ...m,
+                text: m.text || "抱歉，服务暂时不可用，请稍后再试。",
+                quickReplies: ["查询停车状态", "今日专属优惠"],
+                streaming: false,
+              }
+            : m,
+        ),
+      );
+    } finally {
+      clearTimeout(timeout);
+      setIsTyping(false);
+      setIsStreaming(false);
+      abortRef.current = null;
+    }
   }
 
   function navigateTo(feature: string) {

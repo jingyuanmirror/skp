@@ -33,4 +33,14 @@ export default defineConfig({
 
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ['**/*.svg', '**/*.csv'],
+
+  server: {
+    proxy: {
+      '/api/llm': {
+        target: 'https://api.ant-ling.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/llm/, ''),
+      },
+    },
+  },
 })
