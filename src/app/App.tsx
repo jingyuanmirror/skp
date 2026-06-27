@@ -5,6 +5,7 @@ import { INITIAL_MESSAGES } from "./data/initial-messages";
 import { FEATURE_ENTRIES } from "./data/feature-entries";
 import { route } from "./agent";
 import { formatTime } from "./utils/time";
+import { ParkingPage } from "./pages/ParkingPage";
 import type { Message, QueueInfo, UserProfile } from "./types";
 
 export default function App() {
@@ -14,6 +15,7 @@ export default function App() {
   const [parkingInfo, setParkingInfo] = useState<{ location: string; floor: string; parkedAt: number } | null>(null);
   const [queueInfo, setQueueInfo] = useState<QueueInfo | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile>({ categories: [], brands: [], items: [] });
+  const [currentPage, setCurrentPage] = useState<"home" | "parking">("home");
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const chatRef = useRef<HTMLDivElement>(null);
@@ -151,6 +153,19 @@ export default function App() {
     }, 1300);
   }
 
+  function navigateTo(feature: string) {
+    if (feature === "智能停车") {
+      setCurrentPage("parking");
+      return;
+    }
+    send(feature);
+  }
+
+  function handleParkingRedeem() {
+    setCurrentPage("home");
+    setTimeout(() => send("积分抵扣停车费"), 100);
+  }
+
   return (
     <div className="size-full flex items-center justify-center" style={{ background: "#D8D2C8" }}>
       <div
@@ -165,28 +180,16 @@ export default function App() {
           boxShadow: "0 40px 120px rgba(0,0,0,0.45), 0 0 0 1px rgba(184,146,74,0.18)",
         }}
       >
-        <div className="flex-shrink-0 flex items-center justify-between px-8 pt-[52px] pb-2 relative z-20">
-          <span className="text-[13px] font-semibold text-[#1A1713]">9:41</span>
-          <div className="flex items-center gap-1.5">
-            <div className="flex gap-[2px] items-end h-3">
-              {[3, 5, 7, 9].map((h, i) => (
-                <div key={i} className="w-[3px] rounded-sm" style={{ height: h, background: i < 3 ? "#1A1713" : "#1A171340" }} />
-              ))}
-            </div>
-            <svg width="16" height="12" viewBox="0 0 16 12" fill="none">
-              <path d="M8 3C10.2 3 12.2 3.9 13.6 5.4L15.1 3.8C13.3 2 10.8 1 8 1C5.2 1 2.7 2 0.9 3.8L2.4 5.4C3.8 3.9 5.8 3 8 3Z" fill="#1A1713"/>
-              <path d="M8 6C9.5 6 10.8 6.6 11.8 7.6L13.3 6C11.9 4.7 10.1 4 8 4C5.9 4 4.1 4.7 2.7 6L4.2 7.6C5.2 6.6 6.5 6 8 6Z" fill="#1A1713"/>
-              <circle cx="8" cy="10.5" r="1.5" fill="#1A1713"/>
-            </svg>
-            <svg width="26" height="13" viewBox="0 0 26 13" fill="none">
-              <rect x=".5" y=".5" width="22" height="12" rx="3.5" stroke="#1A1713" strokeOpacity=".35"/>
-              <rect x="2" y="2" width="17" height="9" rx="2" fill="#1A1713"/>
-              <path d="M24 4.5v4a2 2 0 0 0 0-4z" fill="#1A1713" fillOpacity=".4"/>
-            </svg>
-          </div>
-        </div>
-
-        <div className="flex-shrink-0 flex items-center justify-between px-5 pb-3 relative z-20">
+        {currentPage === "parking" ? (
+          <ParkingPage
+            parkingInfo={parkingInfo}
+            onBack={() => setCurrentPage("home")}
+            onRecordParking={(info) => setParkingInfo(info)}
+            onRedeemPoints={handleParkingRedeem}
+          />
+        ) : (
+        <>
+        <div className="flex-shrink-0 flex items-center justify-between px-5 pt-4 pb-3 relative z-20">
           <button className="w-8 h-8 flex items-center justify-center text-[#8C8278] text-lg">‹</button>
           <div className="flex items-center gap-2">
             <span className="text-[14px] tracking-[0.18em] text-[#1A1713]" style={{ fontFamily: "'Cormorant', serif" }}>
@@ -251,6 +254,7 @@ export default function App() {
               <motion.button
                 key={feature.title}
                 whileTap={{ scale: 0.97 }}
+                onClick={() => navigateTo(feature.title)}
                 className="flex flex-col items-center gap-2 px-2 py-3.5 text-center w-full transition-all duration-200 rounded-[8px]"
                 style={{
                   background: feature.accent ? "linear-gradient(135deg, #F7F0E4 0%, #F0E8D4 100%)" : "#FFFFFF",
@@ -343,13 +347,9 @@ export default function App() {
               </button>
             )}
           </div>
-
-          <div className="flex justify-center pb-2">
-            <div className="w-32 h-1 rounded-full" style={{ background: "rgba(26,23,19,0.15)" }} />
-          </div>
         </div>
-
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[126px] h-[37px] rounded-b-[20px] pointer-events-none z-30" style={{ background: "#D8D2C8" }} />
+        </>
+        )}
       </div>
     </div>
   );
