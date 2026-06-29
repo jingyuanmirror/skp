@@ -1,11 +1,8 @@
-interface ParkingPageProps {
-  parkingInfo: { location: string; floor: string; parkedAt: number } | null;
+interface SkpActivityPageProps {
   onBack: () => void;
-  onRecordParking: (info: { location: string; floor: string; parkedAt: number }) => void;
-  onRedeemPoints: () => void;
 }
 
-export function ParkingPage({ onBack }: ParkingPageProps) {
+export function SkpActivityPage({ onBack }: SkpActivityPageProps) {
   return (
     <div className="flex flex-col h-full" style={{ background: "#F5F2ED" }}>
       {/* ── Header ── */}
@@ -16,7 +13,7 @@ export function ParkingPage({ onBack }: ParkingPageProps) {
           </svg>
         </button>
         <span className="text-[14px] tracking-[0.15em] text-[#1A1713]" style={{ fontFamily: "'Cormorant', serif", fontWeight: 500 }}>
-          停车缴费
+          SKP活动
         </span>
         <div className="w-8" />
       </div>
@@ -24,8 +21,8 @@ export function ParkingPage({ onBack }: ParkingPageProps) {
       {/* ── Screenshot Image ── */}
       <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
         <img
-          src="/parking.png"
-          alt="停车缴费"
+          src="/skp-activity.png"
+          alt="SKP活动"
           className="w-full"
           style={{ display: "block" }}
         />

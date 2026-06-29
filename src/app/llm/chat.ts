@@ -63,6 +63,9 @@ export async function chat(
   let collectedParkingCard: AgentResponse["parkingCard"] = undefined;
   let collectedCoupons: AgentResponse["coupons"] = undefined;
   let collectedQueueCard: AgentResponse["queueCard"] = undefined;
+  let collectedReservationCard: AgentResponse["reservationCard"] = undefined;
+  let collectedBrandCards: AgentResponse["brandCards"] = undefined;
+  let collectedAppointmentCard: AgentResponse["appointmentCard"] = undefined;
 
   const newMessages: ChatMessage[] = [{ role: "user", content: userText }];
 
@@ -93,8 +96,11 @@ export async function chat(
         quickReplies: quickReplies ?? ["查询停车状态", "今日专属优惠"],
         card: collectedCard,
         parkingCard: collectedParkingCard,
+        reservationCard: collectedReservationCard,
         coupons: collectedCoupons,
         queueCard: collectedQueueCard,
+        brandCards: collectedBrandCards,
+        appointmentCard: collectedAppointmentCard,
       };
 
       // Merge side effects
@@ -130,8 +136,14 @@ export async function chat(
         if ("queueInfo" in toolResult.sideEffects) {
           collectedSideEffects.queueInfo = toolResult.sideEffects.queueInfo;
         }
+        if ("parkingReservation" in toolResult.sideEffects) {
+          collectedSideEffects.parkingReservation = toolResult.sideEffects.parkingReservation;
+        }
         if (toolResult.sideEffects.resetQueueNotified) {
           collectedSideEffects.resetQueueNotified = true;
+        }
+        if ("appointmentInfo" in toolResult.sideEffects) {
+          collectedSideEffects.appointmentInfo = toolResult.sideEffects.appointmentInfo;
         }
       }
 
@@ -140,6 +152,9 @@ export async function chat(
       if (toolResult.parkingCard) collectedParkingCard = toolResult.parkingCard;
       if (toolResult.coupons) collectedCoupons = toolResult.coupons;
       if (toolResult.queueCard) collectedQueueCard = toolResult.queueCard;
+      if (toolResult.reservationCard) collectedReservationCard = toolResult.reservationCard;
+      if (toolResult.brandCards) collectedBrandCards = toolResult.brandCards;
+      if (toolResult.appointmentCard) collectedAppointmentCard = toolResult.appointmentCard;
 
       // Add tool result to messages for the LLM
       const toolMessage: ChatMessage = {
@@ -164,8 +179,11 @@ export async function chat(
         : undefined,
       card: collectedCard,
       parkingCard: collectedParkingCard,
+      reservationCard: collectedReservationCard,
       coupons: collectedCoupons,
       queueCard: collectedQueueCard,
+      brandCards: collectedBrandCards,
+      appointmentCard: collectedAppointmentCard,
     },
     newMessages,
   };

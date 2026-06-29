@@ -37,6 +37,38 @@ export interface QueueCard {
   status: "queuing" | "almost" | "ready";
 }
 
+export interface BrandCard {
+  type: "brand-card";
+  brand: string;
+  floor: string;
+  categories: string[];
+  highlight: string;
+  tag?: string;
+}
+
+export interface AppointmentInfo {
+  type: "appointment";
+  brand: string;
+  floor: string;
+  timeSlot: string;
+  appointmentTime: number;
+  saName: string;
+  reservationId: string;
+  status: "confirmed" | "cancelled" | "completed";
+  flowStatus?: "selecting_slot";
+}
+
+export interface AppointmentCard {
+  type: "appointment-card";
+  brand: string;
+  floor: string;
+  timeSlot: string;
+  saName: string;
+  reservationId: string;
+  status: "confirmed" | "cancelled" | "completed";
+  statusLabel: string;
+}
+
 export interface Message {
   id: string;
   role: "agent" | "user";
@@ -47,6 +79,9 @@ export interface Message {
   parkingCard?: ParkingCard;
   coupons?: CouponCard[];
   queueCard?: QueueCard;
+  brandCards?: BrandCard[];
+  reservationCard?: ReservationCard;
+  appointmentCard?: AppointmentCard;
   streaming?: boolean;
 }
 
@@ -54,6 +89,24 @@ export interface ParkingInfo {
   location: string;
   floor: string;
   parkedAt: number;
+}
+
+export interface ParkingReservation {
+  floor: string;
+  spotId: string;
+  plateNumber?: string;
+  reservationId?: string;
+  reservedAt?: number;
+  status: "collecting_plate" | "confirmed";
+}
+
+export interface ReservationCard {
+  type: "reservation-card";
+  spotId: string;
+  floor: string;
+  plateNumber: string;
+  reservationId: string;
+  status: "confirmed";
 }
 
 export interface QueueInfo {
@@ -67,6 +120,14 @@ export interface QueueInfo {
   status: "queuing" | "almost" | "ready";
 }
 
+export interface EnrollmentForm {
+  name?: string;
+  gender?: string;
+  idNumber?: string;
+  city?: string;
+  address?: string;
+}
+
 export interface UserProfile {
   categories: string[];
   brands: string[];
@@ -74,6 +135,7 @@ export interface UserProfile {
   isMember?: boolean;
   memberTier?: "silver" | "diamond" | "black";
   _justOnboarded?: boolean;
+  _enrollmentForm?: EnrollmentForm;
 }
 
 export interface FeatureEntry {

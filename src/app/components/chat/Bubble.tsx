@@ -2,8 +2,11 @@ import { motion } from "motion/react";
 import type { Message } from "../../types";
 import { MemberCardBubble } from "../cards/MemberCardBubble";
 import { ParkingCardBubble } from "../cards/ParkingCardBubble";
+import { ReservationCardBubble } from "../cards/ReservationCardBubble";
 import { QueueCardBubble } from "../cards/QueueCardBubble";
 import { CouponCardBubble } from "../cards/CouponCardBubble";
+import { BrandCardBubble } from "../cards/BrandCardBubble";
+import { AppointmentCardBubble } from "../cards/AppointmentCardBubble";
 
 export function Bubble({ msg, onQuickReply }: { msg: Message; onQuickReply: (text: string) => void }) {
   const isAgent = msg.role === "agent";
@@ -15,7 +18,7 @@ export function Bubble({ msg, onQuickReply }: { msg: Message; onQuickReply: (tex
           <img
             src="https://images.unsplash.com/photo-1774897795463-e6e4618a4997?w=150&h=150&fit=facearea&facepad=2.2&auto=format"
             alt="顾问头像"
-            className="flex-shrink-0 mt-0.5 w-7 h-7 rounded-full object-cover"
+            className="flex-shrink-0 mt-0.5 w-8 h-8 rounded-full object-cover"
             style={{ border: "1px solid rgba(184,146,74,0.3)" }}
           />
         )}
@@ -41,15 +44,18 @@ export function Bubble({ msg, onQuickReply }: { msg: Message; onQuickReply: (tex
 
           {isAgent && msg.card && <MemberCardBubble card={msg.card} />}
           {isAgent && msg.parkingCard && <ParkingCardBubble card={msg.parkingCard} />}
+          {isAgent && msg.reservationCard && <ReservationCardBubble card={msg.reservationCard} />}
           {isAgent && msg.queueCard && <QueueCardBubble card={msg.queueCard} />}
           {isAgent && msg.coupons && msg.coupons.map((coupon) => <CouponCardBubble key={`${coupon.brand}-${coupon.discount}`} coupon={coupon} />)}
+          {isAgent && msg.brandCards && msg.brandCards.map((bc) => <BrandCardBubble key={`${bc.brand}-${bc.floor}`} card={bc} />)}
+          {isAgent && msg.appointmentCard && <AppointmentCardBubble card={msg.appointmentCard} />}
 
           <p className="text-[9px] text-[#8C8278] mt-1 tracking-wider">{msg.time}</p>
         </div>
       </div>
 
       {isAgent && msg.quickReplies && (
-        <div className="ml-9 mt-2.5 flex flex-wrap gap-1.5">
+        <div className="ml-10 mt-2.5 flex flex-wrap gap-1.5">
           {msg.quickReplies.map((reply) => (
             <button
               key={reply}

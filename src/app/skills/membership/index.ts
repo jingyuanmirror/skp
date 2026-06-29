@@ -1,8 +1,106 @@
 import type { Skill } from "../../agent/types";
+import type { EnrollmentForm, UserProfile } from "../../types";
 import { buildPreferenceSummary, detectPreference } from "../../utils/preference";
+import { chatCompletion } from "../../llm/client";
+import type { ChatMessage } from "../../llm/types";
 
-const MEMBERSHIP_INQUIRY = /有会员吗|会员吗|会员服务|会员制度|会员权益|会员中心|怎么入会|如何入会|怎么办会员/;
-const MEMBERSHIP_ENROLL_INTENT = /我想入会|我要入会|办会员|办理会员|开会员|加入会员|申请会员|现在入会|给我入会/;
+const MEMBERSHIP_INQUIRY = /有会员吗|会员吗|会员服务|会员制度|会员权益|会员中心|怎么入会|如何入会|怎么办会员|会员|入会/;
+const MEMBERSHIP_ENROLL_INTENT = /我想入会|我要入会|帮我入会|想入会|要入会|办会员|办理会员|开会员|加入会员|申请会员|现在入会|给我入会|入会吧/;
+
+/** Use LLM to extract enrollment fields from free-form user text */
+async function extractFormFieldsWithLLM(text: string, existing: EnrollmentForm): Promise<EnrollmentForm> {
+  const existingInfo = Object.entries(existing)
+    .filter(([, v]) => v)
+    .map(([k, v]) => `${k}=${v}`)
+    .join(", ");
+
+  const messages: ChatMessage[] = [
+    {
+      role: "system",
+      content:
+        "你是一个信息提取助手。从用户的消息中提取入会所需的个人信息。\n"
+        + "需要提取的字段：name（姓名）、gender（性别，男/女）、idNumber（身份证号，18位）、city（所在城市）、address（详细地址）。\n"
+        + "已收集到的信息：" + (existingInfo || "无") + "。\n"
+        + "请严格按JSON格式输出，只输出JSON，不要输出其他内容。如果某个字段无法从消息中提取且之前也没有收集到，则该字段为null。\n"
+        + '示例输出：{"name":"李明","gender":"男","idNumber":"110101199001011234","city":"北京","address":"朝阳区建国路87号"}',
+    },
+    {
+      role: "user",
+      content: text,
+    },
+  ];
+
+  try {
+    const result = await chatCompletion(messages, [], { onToken: () => {} });
+    const raw = result.choices[0]?.message?.content?.trim() ?? "";
+    // Try to parse JSON — handle possible markdown code blocks
+    const jsonStr = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+    const parsed = JSON.parse(jsonStr);
+
+    return {
+      name: parsed.name || existing.name || undefined,
+      gender: parsed.gender || existing.gender || undefined,
+      idNumber: parsed.idNumber || existing.idNumber || undefined,
+      city: parsed.city || existing.city || undefined,
+      address: parsed.address || existing.address || undefined,
+    };
+  } catch {
+    // LLM extraction failed, fall back to regex
+    return extractFormFieldsRegex(text, existing);
+  }
+}
+
+/** Fallback: regex-based extraction */
+function extractFormFieldsRegex(text: string, existing: EnrollmentForm): EnrollmentForm {
+  const form: EnrollmentForm = { ...existing };
+
+  if (!form.gender) {
+    if (/男|先生|男士/i.test(text)) form.gender = "男";
+    else if (/女|女士/i.test(text)) form.gender = "女";
+  }
+
+  if (!form.idNumber) {
+    const idMatch = text.match(/[1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx]/);
+    if (idMatch) form.idNumber = idMatch[0].toUpperCase();
+  }
+
+  if (!form.name) {
+    const nameMatch = text.match(/(?:我叫|姓名[是是为：:]|名字[是是为：:])\s*([^\s,，。.;；!！?？\d]{2,4})/);
+    if (nameMatch) form.name = nameMatch[1];
+  }
+
+  if (!form.city) {
+    const cityLabelMatch = text.match(/(?:所在)?城市[是为：:]\s*([^\s,，。.;；!！?？]{2,10})/);
+    if (cityLabelMatch) {
+      form.city = cityLabelMatch[1];
+    } else {
+      const cityKeywords = ["北京", "上海", "广州", "深圳", "成都", "杭州", "南京", "武汉", "重庆", "天津", "苏州", "西安", "长沙", "郑州", "青岛", "大连", "厦门", "宁波", "济南", "昆明"];
+      for (const c of cityKeywords) {
+        if (text.includes(c)) { form.city = c; break; }
+      }
+    }
+  }
+
+  if (!form.address) {
+    const addrMatch = text.match(/(?:详细)?(?:地址|住址)[是为：:]*\s*([^\n]{4,})/);
+    if (addrMatch) {
+      form.address = addrMatch[1].trim();
+    }
+  }
+
+  return form;
+}
+
+/** Which fields are still missing */
+function missingFields(form: EnrollmentForm): string[] {
+  const missing: string[] = [];
+  if (!form.name) missing.push("姓名");
+  if (!form.gender) missing.push("性别");
+  if (!form.idNumber) missing.push("身份证号");
+  if (!form.city) missing.push("所在城市");
+  if (!form.address) missing.push("详细地址");
+  return missing;
+}
 
 function getTierLabel(memberTier: "silver" | "diamond" | "black" | undefined): string {
   if (memberTier === "diamond") return "钻石会员";
@@ -10,13 +108,26 @@ function getTierLabel(memberTier: "silver" | "diamond" | "black" | undefined): s
   return "银卡会员";
 }
 
+/** Enrollment intro — asks for all info at once */
+const ENROLLMENT_INTRO = `好的，很高兴为您办理入会。为了完成注册，请您提供以下信息：
+
+• 姓名
+• 性别
+• 身份证号
+• 所在城市
+• 详细地址
+
+您可以一次性提供，也可以分多次补充。`;
+
 export const membershipSkill: Skill = {
   name: "membership",
-  intentDescription: "处理入会办理、会员权益咨询、会员等级说明，以及入会后偏好补充与档案更新。",
+  intentDescription: "处理入会办理、会员权益咨询、会员等级说明，以及入会后偏好补充与档案更新，也处理用户表达品牌/品类偏好。",
   match: () => true,
-  handle: ({ text, userProfile }) => {
+  handle: async ({ text, userProfile }) => {
     const preference = detectPreference(text);
+    const form = userProfile._enrollmentForm;
 
+    // ── 1. 偏好收集（入会后）──
     if (preference.hasPreference && userProfile._justOnboarded) {
       const newCategories =
         preference.matchedCategory && !userProfile.categories.includes(preference.matchedCategory)
@@ -41,41 +152,186 @@ export const membershipSkill: Skill = {
       };
     }
 
-    if (userProfile.isMember) {
-      if (MEMBERSHIP_INQUIRY.test(text)) {
-        const tierLabel = getTierLabel(userProfile.memberTier);
+    // ── 2. 偏好收集（已有会员）──
+    if (preference.hasPreference && userProfile.isMember && !userProfile._justOnboarded) {
+      const newCategories =
+        preference.matchedCategory && !userProfile.categories.includes(preference.matchedCategory)
+          ? [...userProfile.categories, preference.matchedCategory]
+          : userProfile.categories;
+      const newBrands = [...new Set([...userProfile.brands, ...preference.matchedBrands])];
+      const newItems = [...new Set([...userProfile.items, ...preference.matchedItems])];
 
+      const hasNew = newCategories.length > userProfile.categories.length
+        || newBrands.length > userProfile.brands.length
+        || newItems.length > userProfile.items.length;
+
+      if (hasNew) {
+        return {
+          text: `好的，已为您记录偏好——${buildPreferenceSummary({ categories: newCategories, brands: newBrands, items: newItems })}。后续有相关新品或活动，我会第一时间通知您。\n\n如有其他需要，请随时告诉我。`,
+          quickReplies: ["今日专属优惠", "查询停车状态", "联系专属SA"],
+          sideEffects: {
+            setUserProfile: () => ({
+              categories: newCategories,
+              brands: newBrands,
+              items: newItems,
+              isMember: true,
+              memberTier: userProfile.memberTier ?? "silver",
+              _justOnboarded: false,
+            }),
+          },
+        };
+      }
+
+      return {
+        text: `好的，已记下您的偏好。后续有${buildPreferenceSummary(userProfile)}相关的最新信息，我会第一时间通知您。\n\n如有其他需要，请随时告诉我。`,
+        quickReplies: ["今日专属优惠", "查询停车状态", "联系专属SA"],
+      };
+    }
+
+    // ── 3. 入会信息收集中 —— 用 LLM 提取字段 ──
+    if (form && !userProfile.isMember) {
+      const updatedForm = await extractFormFieldsWithLLM(text, form);
+      const stillMissing = missingFields(updatedForm);
+
+      if (stillMissing.length === 0) {
+        const displayName = updatedForm.name ?? "李先生";
+        return {
+          text: `感谢您提供完整信息，${displayName}先生。入会手续已办理完成，您现在是SKP银卡会员。\n\n您可以点击会员中心查看会员信息，也可以随时向我咨询。\n\n另外，为了更好地服务您，您可以把偏好告诉我，比如您喜欢的品类或近期关注的品牌，有相关信息我会第一时间通知您。`,
+          quickReplies: ["高奢腕表皮具", "美妆护肤", "Hermès", "Chanel"],
+          card: {
+            type: "member-card",
+            tier: "银卡会员",
+            tierIcon: "◇",
+            name: displayName,
+            cardNo: "SKP 2026 **** 88",
+            points: "0",
+            benefits: ["积分累计享双倍", "专属停车优惠", "生日礼遇"],
+          },
+          sideEffects: {
+            setUserProfile: () => ({
+              categories: userProfile.categories,
+              brands: userProfile.brands,
+              items: userProfile.items,
+              isMember: true,
+              memberTier: "silver",
+              _justOnboarded: true,
+              _enrollmentForm: updatedForm,
+            }),
+          },
+        };
+      }
+
+      // 还有缺失字段
+      const previouslyMissing = missingFields(form);
+      const newlyFilled = previouslyMissing.filter((f) => !stillMissing.includes(f));
+
+      let msg = "";
+      if (newlyFilled.length > 0) {
+        msg = `已收到。还需要补充以下信息：${stillMissing.join("、")}。`;
+      } else {
+        msg = `抱歉，未能识别您提供的信息。还需要补充：${stillMissing.join("、")}。请您重新提供，例如："姓名：张三，性别：男，身份证：110101199001011234，城市：北京，地址：朝阳区建国路87号"`;
+      }
+
+      return {
+        text: msg,
+        quickReplies: [],
+        sideEffects: {
+          setUserProfile: () => ({
+            ...userProfile,
+            _enrollmentForm: updatedForm,
+          }),
+        },
+      };
+    }
+
+    // ── 4. 会员咨询（咨询类只回答不办理）──
+    if (MEMBERSHIP_INQUIRY.test(text) && !MEMBERSHIP_ENROLL_INTENT.test(text)) {
+      if (userProfile.isMember) {
+        const tierLabel = getTierLabel(userProfile.memberTier);
         return {
           text: `是的，商场提供会员服务。李先生，您已经是我们的${tierLabel}了，可享积分累计、专属停车礼遇和生日礼遇等权益。`,
           quickReplies: ["查看会员权益", "升级条件", "查询停车状态"],
         };
       }
+      return {
+        text: "是的，商场提供会员服务。当前会员可享积分累计、专属停车礼遇、生日礼遇等权益。李先生，如您愿意，我可以立即为您办理入会。",
+        quickReplies: ["我想入会", "了解会员权益", "入会后做什么"],
+      };
+    }
 
+    // ── 5. 已是会员的通用回复 ──
+    if (userProfile.isMember) {
       return {
         text: "李先生，您当前会员状态正常。SKP会员体系包含银卡、钻石、黑钻等级，可享积分累计、专属停车礼遇、生日礼遇等权益。若您需要，我也可以为您进一步说明各等级差异。",
         quickReplies: ["查看会员权益", "升级条件", "查询停车状态"],
       };
     }
 
+    // ── 6. 明确表达入会意愿 —— 开启信息收集 ──
     if (MEMBERSHIP_ENROLL_INTENT.test(text)) {
+      const initialForm = await extractFormFieldsWithLLM(text, {});
+      const stillMissing = missingFields(initialForm);
+
+      if (stillMissing.length === 0) {
+        const displayName = initialForm.name ?? "李先生";
+        return {
+          text: `感谢您提供完整信息，${displayName}先生。入会手续已办理完成，您现在是SKP银卡会员。\n\n您可以点击会员中心查看会员信息，也可以随时向我咨询。\n\n另外，为了更好地服务您，您可以把偏好告诉我，比如您喜欢的品类或近期关注的品牌，有相关信息我会第一时间通知您。`,
+          quickReplies: ["高奢腕表皮具", "美妆护肤", "Hermès", "Chanel"],
+          card: {
+            type: "member-card",
+            tier: "银卡会员",
+            tierIcon: "◇",
+            name: displayName,
+            cardNo: "SKP 2026 **** 88",
+            points: "0",
+            benefits: ["积分累计享双倍", "专属停车优惠", "生日礼遇"],
+          },
+          sideEffects: {
+            setUserProfile: () => ({
+              categories: userProfile.categories,
+              brands: userProfile.brands,
+              items: userProfile.items,
+              isMember: true,
+              memberTier: "silver",
+              _justOnboarded: true,
+              _enrollmentForm: initialForm,
+            }),
+          },
+        };
+      }
+
+      let prompt = ENROLLMENT_INTRO;
+      if (stillMissing.length < 5) {
+        prompt = `已收到部分信息，还需要补充：${stillMissing.join("、")}。`;
+      }
+
       return {
-        text: "李先生，目前已经帮您办理完入会。您后续可以点击会员中心，进行会员信息查看，也可以随时问我会员信息。\n\n另外，为了更好地服务您，您可以把偏好告诉我，比如您喜欢的品类或近期关注的品牌，这样有相关信息时，我会第一时间为您推荐。",
-        quickReplies: ["高奢腕表皮具", "美妆护肤", "Hermès", "Chanel"],
-        card: {
-          type: "member-card",
-          tier: "银卡会员",
-          tierIcon: "◇",
-          name: "李先生",
-          cardNo: "SKP 2026 **** 88",
-          points: "0",
-          benefits: ["积分累计享双倍", "专属停车优惠", "生日礼遇"],
-        },
+        text: prompt,
+        quickReplies: [],
         sideEffects: {
-          setUserProfile: (prev) => ({ ...prev, isMember: true, memberTier: prev.memberTier ?? "silver", _justOnboarded: true }),
+          setUserProfile: () => ({
+            ...userProfile,
+            _enrollmentForm: initialForm,
+          }),
         },
       };
     }
 
+    // ── 7. 非会员，被 LLM 路由来的确认消息（上下文与入会相关）──
+    if (!userProfile.isMember) {
+      return {
+        text: ENROLLMENT_INTRO,
+        quickReplies: [],
+        sideEffects: {
+          setUserProfile: () => ({
+            ...userProfile,
+            _enrollmentForm: {},
+          }),
+        },
+      };
+    }
+
+    // ── 8. 兜底 ──
     return {
       text: "是的，商场提供会员服务。当前会员可享积分累计、专属停车礼遇、生日礼遇等权益。李先生，如您愿意，我可以立即为您办理入会。",
       quickReplies: ["我想入会", "了解会员权益", "入会后做什么"],

@@ -6,21 +6,24 @@ import { FEATURE_ENTRIES } from "./data/feature-entries";
 import { route } from "./agent";
 import { formatTime } from "./utils/time";
 import { ParkingPage } from "./pages/ParkingPage";
-import type { Message, QueueInfo, UserProfile } from "./types";
+import { CouponPage } from "./pages/CouponPage";
+import { SkpActivityPage } from "./pages/SkpActivityPage";
+import { WarmServicePage } from "./pages/WarmServicePage";
+import { RentalPage } from "./pages/RentalPage";
+import { MembershipPage } from "./pages/MembershipPage";
+import type { Message, ParkingReservation, QueueInfo, UserProfile, AppointmentInfo } from "./types";
+import { SIMULATED_USER_PROFILE } from "./data/user-profile";
 
 export default function App() {
   const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [parkingInfo, setParkingInfo] = useState<{ location: string; floor: string; parkedAt: number } | null>(null);
+  const [parkingReservation, setParkingReservation] = useState<ParkingReservation | null>(null);
   const [queueInfo, setQueueInfo] = useState<QueueInfo | null>(null);
-  const [userProfile, setUserProfile] = useState<UserProfile>({
-    categories: [],
-    brands: [],
-    items: [],
-    isMember: false,
-  });
-  const [currentPage, setCurrentPage] = useState<"home" | "parking">("home");
+  const [appointmentInfo, setAppointmentInfo] = useState<AppointmentInfo | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile>(SIMULATED_USER_PROFILE);
+  const [currentPage, setCurrentPage] = useState<"home" | "parking" | "coupon" | "skp-activity" | "warm-service" | "rental" | "membership">("home");
   const [isStreaming, setIsStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -120,7 +123,7 @@ export default function App() {
     try {
       // 4. Call LLM with streaming
       const response = await route(
-        { text: value, userProfile, parkingInfo, queueInfo },
+        { text: value, userProfile, parkingInfo, parkingReservation, queueInfo, appointmentInfo },
         (token) => {
           // Stream each token into the placeholder message
           setMessages((p) =>
@@ -136,11 +139,17 @@ export default function App() {
       if (response.sideEffects && "parkingInfo" in response.sideEffects) {
         setParkingInfo(response.sideEffects.parkingInfo ?? null);
       }
+      if (response.sideEffects && "parkingReservation" in response.sideEffects) {
+        setParkingReservation(response.sideEffects.parkingReservation ?? null);
+      }
       if (response.sideEffects && "queueInfo" in response.sideEffects) {
         setQueueInfo(response.sideEffects.queueInfo ?? null);
       }
       if (response.sideEffects?.resetQueueNotified) {
         queueNotifiedRef.current = { almost: false, ready: false };
+      }
+      if (response.sideEffects && "appointmentInfo" in response.sideEffects) {
+        setAppointmentInfo(response.sideEffects.appointmentInfo ?? null);
       }
 
       // 6. Finalize the message with full text, cards, quickReplies
@@ -153,8 +162,11 @@ export default function App() {
                 quickReplies: response.quickReplies,
                 card: response.card,
                 parkingCard: response.parkingCard,
+                reservationCard: response.reservationCard,
                 coupons: response.coupons,
                 queueCard: response.queueCard,
+                brandCards: response.brandCards,
+                appointmentCard: response.appointmentCard,
                 streaming: false,
               }
             : m,
@@ -184,8 +196,28 @@ export default function App() {
   }
 
   function navigateTo(feature: string) {
-    if (feature === "智能停车") {
+    if (feature === "停车缴费") {
       setCurrentPage("parking");
+      return;
+    }
+    if (feature === "品牌代金券") {
+      setCurrentPage("coupon");
+      return;
+    }
+    if (feature === "SKP活动") {
+      setCurrentPage("skp-activity");
+      return;
+    }
+    if (feature === "暖心服务") {
+      setCurrentPage("warm-service");
+      return;
+    }
+    if (feature === "租赁服务") {
+      setCurrentPage("rental");
+      return;
+    }
+    if (feature === "会员中心") {
+      setCurrentPage("membership");
       return;
     }
     send(feature);
@@ -217,6 +249,16 @@ export default function App() {
             onRecordParking={(info) => setParkingInfo(info)}
             onRedeemPoints={handleParkingRedeem}
           />
+        ) : currentPage === "skp-activity" ? (
+          <SkpActivityPage onBack={() => setCurrentPage("home")} />
+        ) : currentPage === "warm-service" ? (
+          <WarmServicePage onBack={() => setCurrentPage("home")} />
+        ) : currentPage === "rental" ? (
+          <RentalPage onBack={() => setCurrentPage("home")} />
+        ) : currentPage === "membership" ? (
+          <MembershipPage onBack={() => setCurrentPage("home")} />
+        ) : currentPage === "coupon" ? (
+          <CouponPage onBack={() => setCurrentPage("home")} />
         ) : (
         <>
         <div className="flex-shrink-0 flex items-center justify-between px-5 pt-4 pb-3 relative z-20">
@@ -321,7 +363,7 @@ export default function App() {
                   <img
                     src="https://images.unsplash.com/photo-1774897795463-e6e4618a4997?w=150&h=150&fit=facearea&facepad=2.2&auto=format"
                     alt="顾问头像"
-                    className="flex-shrink-0 w-7 h-7 rounded-full object-cover"
+                    className="flex-shrink-0 w-8 h-8 rounded-full object-cover"
                     style={{ border: "1px solid rgba(184,146,74,0.3)" }}
                   />
                   <div

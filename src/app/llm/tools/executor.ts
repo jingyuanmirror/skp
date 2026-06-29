@@ -1,5 +1,5 @@
 import type { AgentSideEffects, SkillContext } from "../../agent/types";
-import type { MemberCard, ParkingCard, CouponCard, QueueCard } from "../../types";
+import type { AppointmentCard, BrandCard, MemberCard, ParkingCard, CouponCard, QueueCard, ReservationCard } from "../../types";
 import { skills } from "../../skills";
 
 export interface ToolResult {
@@ -7,8 +7,11 @@ export interface ToolResult {
   sideEffects?: AgentSideEffects;
   card?: MemberCard;
   parkingCard?: ParkingCard;
+  reservationCard?: ReservationCard;
   coupons?: CouponCard[];
   queueCard?: QueueCard;
+  brandCards?: BrandCard[];
+  appointmentCard?: AppointmentCard;
 }
 
 /**
@@ -48,8 +51,11 @@ export function executeTool(
       sideEffects: response.sideEffects,
       card: response.card,
       parkingCard: response.parkingCard,
+      reservationCard: response.reservationCard,
       coupons: response.coupons,
       queueCard: response.queueCard,
+      brandCards: response.brandCards,
+      appointmentCard: response.appointmentCard,
     };
   });
 }

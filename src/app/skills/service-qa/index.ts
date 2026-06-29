@@ -43,6 +43,7 @@ function scoreSection(query: string, section: KnowledgeSection): number {
 
   const serviceKeywords = [
     "服务台", "客服台", "问询台", "咨询台", "轮椅", "退货", "退换", "邮寄", "寄送", "快递", "配送", "营业时间", "失物招领", "无障碍", "会员",
+    "餐厅", "餐饮", "美食", "吃饭", "菜系", "菜品", "推荐菜", "人均", "小笼包", "烤鸭", "咖啡", "茶饮",
   ];
 
   let score = 0;
@@ -67,9 +68,9 @@ async function isMallServiceQuery(text: string): Promise<boolean> {
     {
       role: "system",
       content:
-        "你是一个意图分类器。判断用户问题是否属于‘商场服务咨询’。\n"
-        + "商场服务咨询包含但不限于：服务台、轮椅、退换货、寄送配送、营业时间、失物招领、无障碍、会员服务规则等。\n"
-        + "如果是，输出 YES；如果不是，输出 NO。只允许输出 YES 或 NO。",
+        "你是一个意图分类器。判断用户问题是否属于’商场服务与信息咨询’。\n"
+        + "商场服务与信息咨询包含但不限于：服务台、轮椅、退换货、寄送配送、营业时间、失物招领、无障碍、会员服务规则、餐厅推荐、餐厅信息、餐饮、美食、楼层品牌、店铺位置等。\n"
+        + "如果，输出 YES；如果不是，输出 NO。只允许输出 YES 或 NO。",
     },
     {
       role: "user",
@@ -146,12 +147,13 @@ async function rewriteWithLLM(userQuestion: string, snippet: string): Promise<st
     {
       role: "system",
       content:
-        "你是商场客服文案优化助手。你只能基于提供的‘知识片段’作答，严禁杜撰。\n"
+        "你是SKP商场专属客服。你只能基于提供的’知识片段’作答，严禁杜撰。\n"
         + "要求：\n"
-        + "1) 语气自然、柔和、无AI腔。\n"
+        + "1) 语气自然、专业、有温度，称呼用户为’李先生’。\n"
         + "2) 内容必须与知识片段一致，不可新增事实。\n"
-        + "3) 若知识片段无法覆盖用户问题，直接回复：‘抱歉，目前没有相关信息。’\n"
-        + "4) 输出仅回答复正文，不要额外解释。",
+        + "3) 若用户问餐厅推荐，列出知识片段中的相关餐厅，包括菜系和特色菜品。\n"
+        + "4) 若知识片段无法覆盖用户问题，直接回复：’抱歉，目前没有相关信息。’\n"
+        + "5) 输出仅回答正文，不要额外解释。",
     },
     {
       role: "user",
@@ -175,7 +177,7 @@ async function rewriteWithLLM(userQuestion: string, snippet: string): Promise<st
 
 export const serviceQASkill: Skill = {
   name: "service-qa",
-  intentDescription: "处理商场基础客服咨询（服务台、轮椅、退换货、邮寄、营业时间、失物招领等），基于知识库文档回答且不杜撰。",
+  intentDescription: "处理商场服务与信息咨询（服务台、轮椅、退换货、邮寄、营业时间、失物招领、餐厅推荐、餐饮信息、楼层品牌等），基于知识库文档回答且不杜撰。",
   match: () => true,
   handle: async ({ text }) => {
     const mallServiceQuery = await isMallServiceQuery(text);

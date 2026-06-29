@@ -22,12 +22,17 @@ export async function chatCompletion(
     stream: true,
   });
 
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+
+  if (llmConfig.apiKey) {
+    headers.Authorization = `Bearer ${llmConfig.apiKey}`;
+  }
+
   const response = await fetch(url, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${llmConfig.apiKey}`,
-    },
+    headers,
     body,
     signal,
   });

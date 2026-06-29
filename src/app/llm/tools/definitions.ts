@@ -1,16 +1,34 @@
 import type { ToolDefinition } from "../types";
 
 /**
- * 5 tools — 1:1 对应 5 个 skill。
+ * 8 tools — 1:1 对应 8 个 skill。
  * LLM 根据用户意图选择调用哪个 tool，tool 的参数直接传给 skill.handle()。
  */
 export const toolDefinitions: ToolDefinition[] = [
   {
     type: "function",
     function: {
+      name: "appointment",
+      description:
+        "处理奢侈品品牌专柜预约。包括：1) 预约创建（如'帮我预约Chanel'、'帮我约下午2点的Hermès'）；2) 档期查询（如'周末LV有档期吗'）；3) 预约状态查询（如'我的预约几点'）；4) 用户在选档期流程中选择了时段（如'14:00'）。重要：'预约'/'约档期'关键词路由到此skill，'排队'/'排号'路由到queue。",
+      parameters: {
+        type: "object",
+        properties: {
+          text: {
+            type: "string",
+            description: "用户关于品牌预约的原始表述，如'帮我预约Chanel'或'周末LV有档期吗'",
+          },
+        },
+        required: ["text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "parking",
       description:
-        "处理停车相关事务。当用户提到停车位置（如'我停在B2-D05'）、查询停车状态/时长/费用、或需要停车帮助时调用。如果用户提供了停车位置则记录，如果只是询问则查询已记录的信息。",
+        "处理停车相关事务。包括：1) 记录停车位置（如'我停在B2-D05'）；2) 查询停车状态/时长/费用；3) 查询车位可用情况（如'有没有空位'、'车位情况'）；4) 预约车位（如'预约车位'、'预留车位'）；5) 预约流程中提供车牌号。如果用户正在预约流程中提供车牌号，也必须调用此工具。",
       parameters: {
         type: "object",
         properties: {
@@ -82,13 +100,49 @@ export const toolDefinitions: ToolDefinition[] = [
     function: {
       name: "membership",
       description:
-        "处理会员相关事务。当用户表达入会意愿（如'我想入会'）、询问会员信息（如'怎么办会员'）、查询会员权益、或入会后的偏好收集时调用。",
+        "处理会员相关事务。包括：1) 用户表达入会意愿（如'我想入会'）；2) 用户确认入会（如对话上下文涉及入会时用户回复'好的''可以'等确认）；3) 询问会员信息（如'怎么办会员'）；4) 查询会员权益；5) 入会后的偏好收集（用户表达品牌/品类偏好时也调用此工具记录）。",
       parameters: {
         type: "object",
         properties: {
           text: {
             type: "string",
             description: "用户关于会员的原始表述，如'我想入会'或'美妆护肤'",
+          },
+        },
+        required: ["text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "activity-recommend",
+      description:
+        "根据用户画像（品牌/品类/商品偏好）个性化推荐商场活动。当用户询问商场活动、pop-up、展览、鉴赏会、联名活动等，或问'今天有什么活动'、'推荐活动'时调用。会根据用户已记录的偏好进行精准匹配推荐。",
+      parameters: {
+        type: "object",
+        properties: {
+          text: {
+            type: "string",
+            description: "用户关于活动推荐的原始表述，如'今天有什么活动'或'推荐活动'",
+          },
+        },
+        required: ["text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "store-consult",
+      description:
+        "处理品牌店铺在线咨询。包括：1) 品牌信息查询（楼层位置、品类、风格）；2) 当季新品/到货咨询；3) 礼品推荐与品牌推荐；4) 联系SA导购。当用户询问品牌信息、新品、送礼推荐、品牌位置等来店前咨询场景时调用。",
+      parameters: {
+        type: "object",
+        properties: {
+          text: {
+            type: "string",
+            description: "用户关于品牌咨询的原始表述，如'Chanel有什么新款包'或'推荐送礼品牌'",
           },
         },
         required: ["text"],

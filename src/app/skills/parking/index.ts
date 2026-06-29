@@ -1,8 +1,22 @@
+import type { ParkingReservation } from "../../types";
 import type { Skill } from "../../agent/types";
 import { calcParkingDuration, calcParkingFee, parseParkingLocation } from "../../utils/parking";
 import parkingBenefitsDoc from "../../data/membership-benefits.md?raw";
 
 const PARKING_PRICING_QUERY = /怎么收费|收费标准|停车费|多少钱|价格|计费|收费规则/;
+const RESERVATION_QUERY = /车位|空位|预约|预留|有没有车位|还有车位吗|车位情况|车位状态|好停车吗|车位多不多|留个|占个|帮我留|帮我占|快到了/;
+const RESERVATION_INTENT = /预约车位|预留车位|我要预约|帮我预约|预约停车|预留停车|帮我留个|帮我占个|留一个|占一个|帮我留|先帮我|先占|帮我预约一下/;
+const LICENSE_PLATE_REGEX = /[京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤川青藏琼宁][A-HJ-NP-Z][A-HJ-NP-Z0-9]{4,5}[A-HJ-NP-Z0-9挂学警港澳]/;
+
+const SIMULATED_AVAILABILITY: Record<string, { total: number; available: number; label: string }> = {
+  B1: { total: 120, available: 8, label: "B1层" },
+  B2: { total: 200, available: 23, label: "B2层" },
+  B3: { total: 180, available: 45, label: "B3层" },
+};
+
+function generateReservationId(): string {
+  return `SKP-RSV-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+}
 
 function getParkingBenefitMessageFromDoc(memberTier: "silver" | "diamond" | "black" | undefined): string | null {
   const tier = memberTier ?? "silver";
@@ -15,13 +29,84 @@ function getParkingBenefitMessageFromDoc(memberTier: "silver" | "diamond" | "bla
 
 export const parkingSkill: Skill = {
   name: "parking",
-  intentDescription: "处理停车位置登记、停车状态查询、停车时长与费用估算、停车收费标准和停车权益说明。",
+  intentDescription: "处理所有停车相关事务：1) 记录停车位置（如\"我停在B2-D05\"）；2) 查询停车状态/时长/费用；3) 查询车位可用情况（如\"有没有空位\"、\"好停车吗\"、\"车位多不多\"）；4) 预约/预留车位（如\"预约车位\"、\"帮我留个车位\"、\"快到了帮我留一个\"、\"先占个位\"）；5) 预约流程中提供车牌号；6) 停车收费标准与停车权益说明。任何与停车、车位、停车费相关的意图都应路由到此skill。",
   match: () => true,
-  handle: ({ text, parkingInfo, userProfile }) => {
+  handle: ({ text, parkingInfo, parkingReservation, userProfile }) => {
     const parkingLocation = parseParkingLocation(text);
     const isParkingRecord = Boolean(parkingLocation);
     const isPricingQuery = PARKING_PRICING_QUERY.test(text);
 
+    // ── 0. 预约流程中：收集车牌号 ──
+    if (parkingReservation?.status === "collecting_plate") {
+      const plateMatch = text.match(LICENSE_PLATE_REGEX);
+      if (plateMatch) {
+        const plate = plateMatch[0].toUpperCase();
+        const reservationId = generateReservationId();
+        const confirmed: ParkingReservation = {
+          ...parkingReservation,
+          plateNumber: plate,
+          reservationId,
+          reservedAt: Date.now(),
+          status: "confirmed",
+        };
+        return {
+          text: `李先生，车位预约成功！您的预约信息如下：\n\n车位：${confirmed.floor}层 ${confirmed.spotId}\n车牌：${plate}\n预约编号：${reservationId}\n\n该车位将为您保留2小时，请在到达时凭预约编号快速入场。`,
+          quickReplies: ["查询停车状态", "导航到商场", "今日专属优惠"],
+          reservationCard: {
+            type: "reservation-card",
+            spotId: confirmed.spotId,
+            floor: confirmed.floor,
+            plateNumber: plate,
+            reservationId,
+            status: "confirmed",
+          },
+          sideEffects: {
+            parkingReservation: confirmed,
+          },
+        };
+      }
+      // 未识别到车牌号
+      return {
+        text: "抱歉，未能识别您的车牌号，请提供完整的车牌号码，例如\"京A12345\"。",
+        quickReplies: [],
+      };
+    }
+
+    // ── 1. 查询车位情况（纯查询，非预约意图）──
+    if (RESERVATION_QUERY.test(text) && !RESERVATION_INTENT.test(text) && !isParkingRecord) {
+      const summary = Object.values(SIMULATED_AVAILABILITY)
+        .map((f) => `${f.label}：${f.available}/${f.total}个可用`)
+        .join("\n");
+      return {
+        text: `李先生，当前商场车位情况如下：\n\n${summary}\n\n如需预约车位，请告诉我，我将为您预留。`,
+        quickReplies: ["预约车位", "我停在B2-D05", "停车费多少"],
+      };
+    }
+
+    // ── 2. 预约车位意图 ──
+    if (RESERVATION_INTENT.test(text)) {
+      // 选择空位最多的楼层
+      const bestFloor = Object.entries(SIMULATED_AVAILABILITY)
+        .sort(([, a], [, b]) => b.available - a.available)[0];
+      // 随机分配一个车位编号
+      const spotId = `${bestFloor[0]}-${String.fromCharCode(65 + Math.floor(Math.random() * 6))}${String(Math.floor(Math.random() * 99) + 1).padStart(2, "0")}`;
+
+      const newReservation: ParkingReservation = {
+        floor: bestFloor[0],
+        spotId,
+        status: "collecting_plate",
+      };
+
+      return {
+        text: `李先生，已为您选择${bestFloor[1].label}空余车位 ${spotId}。请提供您的车牌号以完成预约，例如\"京A12345\"。`,
+        quickReplies: [],
+        sideEffects: {
+          parkingReservation: newReservation,
+        },
+      };
+    }
+
+    // ── 3. 停车位置登记 ──
     if (isParkingRecord) {
       const info = {
         location: parkingLocation!.location,
@@ -47,6 +132,7 @@ export const parkingSkill: Skill = {
       };
     }
 
+    // ── 4. 停车状态查询 ──
     if (parkingInfo) {
       const duration = calcParkingDuration(parkingInfo.parkedAt);
       const fee = calcParkingFee(parkingInfo.parkedAt);
@@ -76,6 +162,7 @@ export const parkingSkill: Skill = {
       };
     }
 
+    // ── 5. 停车收费查询 ──
     if (isPricingQuery) {
       const parkingBenefitMessage = userProfile.isMember
         ? getParkingBenefitMessageFromDoc(userProfile.memberTier)
@@ -93,9 +180,10 @@ export const parkingSkill: Skill = {
       };
     }
 
+    // ── 6. 兜底 ──
     return {
-      text: "李先生，目前还没有您的停车记录。您可以告诉我您的停车位置，例如\"我停在B2-D05\"，我会为您记录并计算费用。",
-      quickReplies: ["我停在B3-A12", "我停在B1-C08", "今日专属优惠"],
+      text: "李先生，目前还没有您的停车记录。您可以告诉我您的停车位置，例如\"我停在B2-D05\"，我会为您记录并计算费用。如需预约车位，也可以告诉我。",
+      quickReplies: ["我停在B3-A12", "预约车位", "今日专属优惠"],
     };
   },
 };

@@ -1,11 +1,8 @@
-interface ParkingPageProps {
-  parkingInfo: { location: string; floor: string; parkedAt: number } | null;
+interface CouponPageProps {
   onBack: () => void;
-  onRecordParking: (info: { location: string; floor: string; parkedAt: number }) => void;
-  onRedeemPoints: () => void;
 }
 
-export function ParkingPage({ onBack }: ParkingPageProps) {
+export function CouponPage({ onBack }: CouponPageProps) {
   return (
     <div className="flex flex-col h-full" style={{ background: "#F5F2ED" }}>
       {/* ── Header ── */}
@@ -16,7 +13,7 @@ export function ParkingPage({ onBack }: ParkingPageProps) {
           </svg>
         </button>
         <span className="text-[14px] tracking-[0.15em] text-[#1A1713]" style={{ fontFamily: "'Cormorant', serif", fontWeight: 500 }}>
-          停车缴费
+          品牌代金券
         </span>
         <div className="w-8" />
       </div>
@@ -24,8 +21,8 @@ export function ParkingPage({ onBack }: ParkingPageProps) {
       {/* ── Screenshot Image ── */}
       <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
         <img
-          src="/parking.png"
-          alt="停车缴费"
+          src="/coupon.png"
+          alt="品牌代金券"
           className="w-full"
           style={{ display: "block" }}
         />
